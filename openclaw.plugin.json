@@ -111,6 +111,10 @@
       },
       "expansionProvider": {
         "type": "string"
+      },
+      "continuity": {
+        "type": "object",
+        "additionalProperties": true
       }
     }
   }

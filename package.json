@@ -41,7 +41,7 @@
     "vitest": "^3.0.0"
   },
   "peerDependencies": {
-    "openclaw": "file:../../../Users/nexus/code/openclaw-custom"
+    "openclaw": "^2026.3.28"
   },
   "publishConfig": {
     "access": "public"

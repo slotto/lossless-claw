@@ -147,7 +147,7 @@ describe("lcm plugin registration", () => {
       largeFileTokenThreshold: 12345,
     });
     expect(infoLog).toHaveBeenCalledWith(
-      `[lcm] Plugin loaded (enabled=true, db=${dbPath}, threshold=0.33)`,
+      `[lcm] Plugin loaded: LCM (enabled=true, db=${dbPath}, threshold=0.33)`,
     );
     expect(infoLog).toHaveBeenCalledWith(
       "[lcm] Ignoring sessions matching 2 pattern(s): agent:*:cron:**, agent:main:subagent:**",
@@ -391,7 +391,7 @@ describe("lcm plugin registration", () => {
 
     expect(firstMessages).toHaveLength(4);
     expect([...firstMessages].sort()).toEqual([
-      `[lcm] Plugin loaded (enabled=true, db=${dbPath}, threshold=0.33)`,
+      `[lcm] Plugin loaded: LCM (enabled=true, db=${dbPath}, threshold=0.33)`,
       "[lcm] Compaction summarization model: (unconfigured)",
       "[lcm] Ignoring sessions matching 2 pattern(s): agent:*:cron:**, agent:main:subagent:**",
       "[lcm] Stateless session patterns: 1 pattern(s): agent:*:subagent:**",

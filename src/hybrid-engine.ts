@@ -47,13 +47,11 @@ export class HybridContextEngine implements ContextEngine {
     this.continuity = new ContinuityEngine(continuityService, deps.runtime?.logger);
   }
 
-  info(): ContextEngineInfo {
-    return {
-      id: "lossless-claw-hybrid",
-      name: "Lossless Claw + Continuity",
-      version: this.lcm.info().version,
-    };
-  }
+  readonly info: ContextEngineInfo = {
+    id: "lossless-claw-hybrid",
+    name: "Lossless Claw + Continuity",
+    version: "0.1.0-hybrid",
+  };
 
   async bootstrap(params: Parameters<ContextEngine["bootstrap"]>[0]): Promise<BootstrapResult> {
     // Bootstrap both engines

@@ -10,6 +10,8 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import { resolveLcmConfig } from "../db/config.js";
 import { createLcmDatabaseConnection } from "../db/connection.js";
 import { LcmContextEngine } from "../engine.js";
+import { HybridContextEngine } from "../hybrid-engine.js";
+import { createContinuityService } from "../continuity/service.js";
 import { logStartupBannerOnce } from "../startup-banner-log.js";
 import { createLcmDescribeTool } from "../tools/lcm-describe-tool.js";
 import { createLcmExpandQueryTool } from "../tools/lcm-expand-query-tool.js";
@@ -1477,8 +1479,37 @@ const lcmPlugin = {
     const database = createLcmDatabaseConnection(deps.config.databasePath);
     const lcm = new LcmContextEngine(deps, database);
 
-    api.registerContextEngine("lossless-claw", () => lcm);
-    api.registerContextEngine("default", () => lcm);
+    // Check if continuity config is present
+    const pluginConfig =
+      api.pluginConfig && typeof api.pluginConfig === "object" && !Array.isArray(api.pluginConfig)
+        ? api.pluginConfig
+        : undefined;
+    const hasContinuityConfig = pluginConfig && "continuity" in pluginConfig;
+
+    let engine: LcmContextEngine | HybridContextEngine = lcm;
+    let engineName = "LCM";
+
+    if (hasContinuityConfig) {
+      try {
+        const continuityService = createContinuityService({
+          config: api.config,
+          runtime: api.runtime,
+          pluginConfig: pluginConfig.continuity as any,
+          logger: api.logger,
+        });
+        engine = new HybridContextEngine(deps.config, deps, continuityService);
+        engineName = "LCM + Continuity (Hybrid)";
+        api.logger.info("[lcm] Continuity config detected — enabling hybrid engine");
+      } catch (err) {
+        api.logger.error(
+          `[lcm] Failed to initialize continuity: ${err instanceof Error ? err.message : err}`,
+        );
+        api.logger.info("[lcm] Falling back to standard LCM engine");
+      }
+    }
+
+    api.registerContextEngine("lossless-claw", () => engine);
+    api.registerContextEngine("default", () => engine);
     api.registerTool((ctx) =>
       createLcmGrepTool({
         deps,
@@ -1512,7 +1543,7 @@ const lcmPlugin = {
     logStartupBannerOnce({
       key: "plugin-loaded",
       log: (message) => api.logger.info(message),
-      message: `[lcm] Plugin loaded (enabled=${deps.config.enabled}, db=${deps.config.databasePath}, threshold=${deps.config.contextThreshold})`,
+      message: `[lcm] Plugin loaded: ${engineName} (enabled=${deps.config.enabled}, db=${deps.config.databasePath}, threshold=${deps.config.contextThreshold})`,
     });
     logStartupBannerOnce({
       key: "compaction-model",

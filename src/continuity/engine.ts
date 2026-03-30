@@ -207,6 +207,7 @@ export class ContinuityContextEngine {
 
   async afterTurn(params: {
     sessionId: string;
+    sessionKey?: string;
     sessionFile: string;
     messages: ContinuityAgentMessage[];
     prePromptMessageCount: number;
@@ -219,11 +220,8 @@ export class ContinuityContextEngine {
       return;
     }
 
-    const runtimeContext = params.runtimeContext;
-    const sessionKey =
-      runtimeContext && typeof runtimeContext.sessionKey === "string"
-        ? runtimeContext.sessionKey
-        : undefined;
+    // Use top-level sessionKey (SDK contract)
+    const sessionKey = params.sessionKey;
     if (!sessionKey) {
       return;
     }
@@ -236,8 +234,7 @@ export class ContinuityContextEngine {
       return;
     }
 
-    const runtimeAgentId =
-      runtimeContext && typeof runtimeContext.agentId === "string" ? runtimeContext.agentId : undefined;
+    const runtimeAgentId = params.runtimeContext?.agentId as string | undefined;
 
     await this.params.service.captureTurn({
       agentId: this.params.agentId ?? runtimeAgentId,

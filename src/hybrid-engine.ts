@@ -117,9 +117,26 @@ export class HybridContextEngine implements ContextEngine {
     // Get LCM's assembled context (DAG-based compaction)
     const lcmResult = await this.lcm.assemble(params);
 
-    // For now, just use LCM's result
-    // TODO: integrate continuity's cross-channel context injection
-    return lcmResult;
+    // Get continuity's cross-channel context injection
+    const continuityResult = await this.continuity.assemble(params);
+
+    // Merge both results
+    return {
+      messages: [
+        ...(continuityResult.messages || []),  // Continuity recent history first
+        ...(lcmResult.messages || []),         // Then LCM compacted context
+      ],
+    };
+  }
+
+  async afterTurn(
+    params: Parameters<ContextEngine["afterTurn"]>[0],
+  ): Promise<void> {
+    // Call afterTurn on both engines in parallel
+    await Promise.all([
+      this.lcm.afterTurn?.(params),
+      this.continuity.afterTurn?.(params),
+    ]);
   }
 
   async compact(

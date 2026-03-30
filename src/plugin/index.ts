@@ -1497,7 +1497,7 @@ const lcmPlugin = {
           pluginConfig: pluginConfig.continuity as any,
           logger: api.logger,
         });
-        engine = new HybridContextEngine(deps.config, deps, continuityService);
+        engine = new HybridContextEngine(deps, database, continuityService, api.logger);
         engineName = "LCM + Continuity (Hybrid)";
         api.logger.info("[lcm] Continuity config detected — enabling hybrid engine");
       } catch (err) {

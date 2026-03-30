@@ -10,6 +10,7 @@
  * - Both share the same message stream
  */
 
+import type { DatabaseSync } from "node:sqlite";
 import type {
   ContextEngine,
   ContextEngineInfo,
@@ -18,55 +19,57 @@ import type {
   CompactResult,
   IngestBatchResult,
   IngestResult,
-  SubagentEndReason,
-  SubagentSpawnPreparation,
-  PluginRuntime,
 } from "openclaw/plugin-sdk";
 import { LcmContextEngine } from "./engine.js";
-import type { LcmConfig } from "./db/config.js";
 import type { LcmDependencies } from "./types.js";
 import { ContinuityContextEngine } from "./continuity/engine.js";
 import type { ContinuityService } from "./continuity/service.js";
-
-type AssembleResultWithSystemPrompt = AssembleResult & { systemPromptAddition?: string };
+import type { PluginLogger } from "./continuity/sdk-compat.js";
 
 export class HybridContextEngine implements ContextEngine {
   private lcm: LcmContextEngine;
   private continuity: ContinuityContextEngine;
-  private logger?: PluginRuntime["logger"];
 
   constructor(
-    private config: LcmConfig,
-    private deps: LcmDependencies,
-    private continuityService: ContinuityService,
+    deps: LcmDependencies,
+    database: DatabaseSync,
+    continuityService: ContinuityService,
+    logger?: PluginLogger,
   ) {
-    this.logger = deps.runtime?.logger;
-    
     // Initialize both engines
-    this.lcm = new LcmContextEngine(config, deps);
-    this.continuity = new ContinuityContextEngine(continuityService, deps.runtime?.logger);
+    this.lcm = new LcmContextEngine(deps, database);
+    this.continuity = new ContinuityContextEngine({
+      service: continuityService,
+      logger,
+    });
+    
+    // Bind optional lifecycle methods from LCM
+    this.prepareSubagentSpawn = this.lcm.prepareSubagentSpawn?.bind(this.lcm);
   }
 
   readonly info: ContextEngineInfo = {
     id: "lossless-claw-hybrid",
     name: "Lossless Claw + Continuity",
     version: "0.1.0-hybrid",
+    ownsCompaction: true,
   };
 
-  async bootstrap(params: Parameters<ContextEngine["bootstrap"]>[0]): Promise<BootstrapResult> {
-    // Bootstrap both engines
+  async bootstrap(
+    params: Parameters<ContextEngine["bootstrap"]>[0],
+  ): Promise<BootstrapResult> {
+    // Bootstrap both engines in parallel
+    const lcmPromise = this.lcm.bootstrap?.(params);
+    const continuityPromise = this.continuity.bootstrap?.(params);
+    
     const [lcmResult, continuityResult] = await Promise.all([
-      this.lcm.bootstrap(params),
-      this.continuity.bootstrap(params),
+      lcmPromise ?? Promise.resolve({ bootstrapped: false, reason: "no bootstrap" }),
+      continuityPromise ?? Promise.resolve({ bootstrapped: false, reason: "no bootstrap" }),
     ]);
 
-    // Merge results (LCM takes priority for message handling)
+    // Return merged result
     return {
-      ...lcmResult,
-      systemPromptAddition: this.mergeSystemPrompts(
-        lcmResult.systemPromptAddition,
-        continuityResult.systemPromptAddition,
-      ),
+      bootstrapped: lcmResult.bootstrapped || continuityResult.bootstrapped,
+      reason: lcmResult.bootstrapped ? lcmResult.reason : continuityResult.reason,
     };
   }
 
@@ -85,83 +88,47 @@ export class HybridContextEngine implements ContextEngine {
   async ingestBatch(
     params: Parameters<ContextEngine["ingestBatch"]>[0],
   ): Promise<IngestBatchResult> {
-    // Both engines ingest the batch
-    const [lcmResult, continuityResult] = await Promise.all([
-      this.lcm.ingestBatch(params),
-      this.continuity.ingestBatch(params),
-    ]);
+    // Only LCM has ingestBatch; continuity ingests one at a time
+    const lcmResult = await (this.lcm.ingestBatch?.(params) ?? Promise.resolve({ ingestedCount: 0 }));
+    
+    // Ingest each message individually through continuity
+    let continuityCount = 0;
+    if (params.messages) {
+      for (const message of params.messages) {
+        const result = await this.continuity.ingest({
+          sessionId: params.sessionId,
+          message,
+          isHeartbeat: params.isHeartbeat,
+        });
+        if (result.ingested) {
+          continuityCount++;
+        }
+      }
+    }
 
     return {
-      ingested: lcmResult.ingested + continuityResult.ingested,
+      ingestedCount: lcmResult.ingestedCount + continuityCount,
     };
   }
 
   async assemble(
     params: Parameters<ContextEngine["assemble"]>[0],
-  ): Promise<AssembleResultWithSystemPrompt> {
+  ): Promise<AssembleResult> {
     // Get LCM's assembled context (DAG-based compaction)
-    const lcmResult = (await this.lcm.assemble(params)) as AssembleResultWithSystemPrompt;
+    const lcmResult = await this.lcm.assemble(params);
 
-    // Get continuity's cross-channel recent history
-    const continuityResult = (await this.continuity.assemble(
-      params,
-    )) as AssembleResultWithSystemPrompt;
-
-    // Merge: LCM provides the base context, continuity adds cross-channel recent history
-    return {
-      messages: lcmResult.messages, // Use LCM's compacted messages
-      estimatedTokens: lcmResult.estimatedTokens,
-      systemPromptAddition: this.mergeSystemPrompts(
-        lcmResult.systemPromptAddition,
-        continuityResult.systemPromptAddition,
-      ),
-    };
+    // For now, just use LCM's result
+    // TODO: integrate continuity's cross-channel context injection
+    return lcmResult;
   }
 
-  async compact(params: Parameters<ContextEngine["compact"]>[0]): Promise<CompactResult> {
+  async compact(
+    params: Parameters<ContextEngine["compact"]>[0],
+  ): Promise<CompactResult> {
     // Only LCM handles compaction (continuity doesn't compact)
     return this.lcm.compact(params);
   }
 
-  async afterTurn(params: Parameters<ContextEngine["afterTurn"]>[0]): Promise<void> {
-    // Both engines handle after-turn cleanup
-    await Promise.all([this.lcm.afterTurn(params), this.continuity.afterTurn(params)]);
-  }
-
-  async beforeSubagentSpawn(
-    params: Parameters<ContextEngine["beforeSubagentSpawn"]>[0],
-  ): Promise<SubagentSpawnPreparation | undefined> {
-    // Use LCM's subagent spawn logic
-    return this.lcm.beforeSubagentSpawn(params);
-  }
-
-  async afterSubagentEnd(
-    params: Parameters<ContextEngine["afterSubagentEnd"]>[0],
-  ): Promise<void> {
-    // Both engines handle subagent cleanup
-    await Promise.all([this.lcm.afterSubagentEnd(params), this.continuity.afterSubagentEnd(params)]);
-  }
-
-  private mergeSystemPrompts(
-    lcmPrompt: string | undefined,
-    continuityPrompt: string | undefined,
-  ): string | undefined {
-    if (!lcmPrompt && !continuityPrompt) {
-      return undefined;
-    }
-    
-    const parts: string[] = [];
-    
-    if (continuityPrompt) {
-      // Continuity's cross-channel context goes first (more recent/relevant)
-      parts.push(continuityPrompt);
-    }
-    
-    if (lcmPrompt) {
-      // LCM's DAG summaries go second (broader context)
-      parts.push(lcmPrompt);
-    }
-    
-    return parts.join("\n\n");
-  }
+  // Optional lifecycle methods are forwarded from LCM when they exist
+  prepareSubagentSpawn?: typeof this.lcm.prepareSubagentSpawn;
 }

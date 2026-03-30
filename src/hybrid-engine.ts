@@ -25,14 +25,14 @@ import type {
 import { LcmContextEngine } from "./engine.js";
 import type { LcmConfig } from "./db/config.js";
 import type { LcmDependencies } from "./types.js";
-import { ContinuityEngine } from "./continuity/engine.js";
+import { ContinuityContextEngine } from "./continuity/engine.js";
 import type { ContinuityService } from "./continuity/service.js";
 
 type AssembleResultWithSystemPrompt = AssembleResult & { systemPromptAddition?: string };
 
 export class HybridContextEngine implements ContextEngine {
   private lcm: LcmContextEngine;
-  private continuity: ContinuityEngine;
+  private continuity: ContinuityContextEngine;
   private logger?: PluginRuntime["logger"];
 
   constructor(
@@ -44,7 +44,7 @@ export class HybridContextEngine implements ContextEngine {
     
     // Initialize both engines
     this.lcm = new LcmContextEngine(config, deps);
-    this.continuity = new ContinuityEngine(continuityService, deps.runtime?.logger);
+    this.continuity = new ContinuityContextEngine(continuityService, deps.runtime?.logger);
   }
 
   readonly info: ContextEngineInfo = {

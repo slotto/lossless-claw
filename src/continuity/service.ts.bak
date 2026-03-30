@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { PluginLogger } from "./sdk-compat.js";
-import type { OpenClawConfig, PluginRuntime } from "openclaw/plugin-sdk";
+import type { OpenClawConfig, PluginLogger, PluginRuntime } from "openclaw/plugin-sdk";
 import { stripAssistantInternalScaffolding } from "./assistant-visible-text.js";
 import { extractTextFromChatContent } from "./chat-content.js";
 import { CONTINUITY_FILE_BY_KIND, resolveContinuityConfig } from "./config.js";

@@ -1,0 +1,11 @@
+--- a/src/plugin/index.ts
++++ b/src/plugin/index.ts
+@@ -10,6 +10,8 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
+ import { resolveLcmConfig } from "../db/config.js";
+ import { createLcmDatabaseConnection } from "../db/connection.js";
+ import { LcmContextEngine } from "../engine.js";
++import { HybridContextEngine } from "../hybrid-engine.js";
++import { createContinuityService } from "../continuity/service.js";
+ import { logStartupBannerOnce } from "../startup-banner-log.js";
+ import { createLcmDescribeTool } from "../tools/lcm-describe-tool.js";
+ import { createLcmExpandQueryTool } from "../tools/lcm-expand-query-tool.js";

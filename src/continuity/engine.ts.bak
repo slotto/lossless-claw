@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
-import type { PluginLogger } from "./sdk-compat.js";
+import type { PluginLogger } from "openclaw/plugin-sdk";
 import type { ContinuityAgentMessage } from "./types.js";
 import type { ContinuityService } from "./service.js";
 

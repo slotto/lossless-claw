@@ -144,6 +144,14 @@ function generateSummaryId(content: string): string {
 const FALLBACK_MAX_CHARS = 512 * 4;
 const DEFAULT_LEAF_CHUNK_TOKENS = 20_000;
 
+
+/**
+ * Minimum tokens required for a chunk to justify summary overhead.
+ * Chunks smaller than this are skipped to prevent summary metadata from
+ * exceeding original content size (safeguard against session growth during
+ * forced compaction).
+ */
+const MIN_CHUNK_TOKENS = 1000;
 /**
  * Pattern matching MEDIA:/... file path references that appear in message content
  * when the original message contained only a media attachment (image, file, etc.)
@@ -865,6 +873,11 @@ export class CompactionEngine {
       if (chunkTokens >= threshold) {
         break;
       }
+    }
+
+    // Safeguard: skip chunks too small to justify summary overhead
+    if (chunk.length > 0 && chunkTokens < MIN_CHUNK_TOKENS) {
+      return { items: [], rawTokensOutsideTail, threshold };
     }
 
     return { items: chunk, rawTokensOutsideTail, threshold };

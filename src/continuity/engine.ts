@@ -201,6 +201,13 @@ export class ContinuityContextEngine {
     messages: ContinuityAgentMessage[];
     tokenBudget?: number;
   }): Promise<AssembleResult> {
+    // Debug logging
+    console.log('[continuity] assemble called:', {
+      sessionKey: params.sessionKey,
+      messageCount: params.messages.length,
+      hasBudget: !!params.tokenBudget
+    });
+    
     // Get agent ID from session or use configured agent
     const agentId = this.params.agentId ?? resolveSessionAgentId(params.sessionKey);
     
@@ -245,8 +252,16 @@ export class ContinuityContextEngine {
         .slice(0, 5)
         .reverse();  // Show oldest first
       
+      console.log('[continuity] assemble: filtered', {
+        totalEntries: recentStore.entries.length,
+        relevantEntries: relevantEntries.length,
+        contextEntries: contextEntries.length,
+        agentId
+      });
+      
       if (contextEntries.length === 0) {
         // No cross-channel context to inject
+        console.log('[continuity] assemble: no cross-channel context to inject');
         return {
           messages: params.messages,
           estimatedTokens: 0,

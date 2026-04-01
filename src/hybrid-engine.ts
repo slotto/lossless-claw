@@ -120,11 +120,29 @@ export class HybridContextEngine implements ContextEngine {
   async assemble(
     params: Parameters<ContextEngine["assemble"]>[0],
   ): Promise<AssembleResult> {
+    try {
+      require('fs').appendFileSync('/tmp/hybrid-assemble.log',
+        `${new Date().toISOString()} hybrid.assemble called, sessionKey=${params.sessionKey}
+`);
+    } catch {}
+    
     // Get LCM's assembled context (DAG-based compaction)
     const lcmResult = await this.lcm.assemble(params);
 
+    try {
+      require('fs').appendFileSync('/tmp/hybrid-assemble.log',
+        `${new Date().toISOString()} calling continuity.assemble
+`);
+    } catch {}
+    
     // Get continuity's cross-channel context injection
     const continuityResult = await this.continuity.assemble(params);
+    
+    try {
+      require('fs').appendFileSync('/tmp/hybrid-assemble.log',
+        `${new Date().toISOString()} continuity returned ${continuityResult.messages?.length || 0} messages
+`);
+    } catch {}
 
     // Merge both results
     return {

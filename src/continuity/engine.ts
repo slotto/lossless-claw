@@ -211,8 +211,11 @@ export class ContinuityContextEngine {
     // Get agent ID from session or use configured agent
     const agentId = this.params.agentId ?? resolveSessionAgentId(params.sessionKey);
     
+    console.log('[continuity] assemble: agentId =', agentId, 'sessionKey =', params.sessionKey);
+    
     if (!agentId || !params.sessionKey) {
       // No agent ID or session key - can't inject context
+      console.log('[continuity] assemble: early return (no agentId or sessionKey)');
       return {
         messages: params.messages,
         estimatedTokens: 0,

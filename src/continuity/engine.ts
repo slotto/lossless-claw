@@ -201,25 +201,17 @@ export class ContinuityContextEngine {
     messages: ContinuityAgentMessage[];
     tokenBudget?: number;
   }): Promise<AssembleResult> {
-    // Debug logging
-    console.log('[continuity] assemble called:', {
-      sessionKey: params.sessionKey,
-      messageCount: params.messages.length,
-      hasBudget: !!params.tokenBudget
-    });
-    
     // Get agent ID from session or use configured agent
     const agentId = this.params.agentId ?? resolveSessionAgentId(params.sessionKey);
     
     try {
       require('fs').appendFileSync('/tmp/continuity-assemble.log',
-        `${new Date().toISOString()} agentId=${agentId} sessionKey=${params.sessionKey}
+        `${new Date().toISOString()} START agentId=${agentId} sessionKey=${params.sessionKey}
 `);
     } catch {}
     
     if (!agentId || !params.sessionKey) {
       // No agent ID or session key - can't inject context
-      console.log('[continuity] assemble: early return (no agentId or sessionKey)');
       return {
         messages: params.messages,
         estimatedTokens: 0,
@@ -267,7 +259,6 @@ export class ContinuityContextEngine {
       
       if (contextEntries.length === 0) {
         // No cross-channel context to inject
-        console.log('[continuity] assemble: no cross-channel context to inject');
         return {
           messages: params.messages,
           estimatedTokens: 0,

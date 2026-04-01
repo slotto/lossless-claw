@@ -211,7 +211,11 @@ export class ContinuityContextEngine {
     // Get agent ID from session or use configured agent
     const agentId = this.params.agentId ?? resolveSessionAgentId(params.sessionKey);
     
-    console.log('[continuity] assemble: agentId =', agentId, 'sessionKey =', params.sessionKey);
+    try {
+      require('fs').appendFileSync('/tmp/continuity-assemble.log',
+        `${new Date().toISOString()} agentId=${agentId} sessionKey=${params.sessionKey}
+`);
+    } catch {}
     
     if (!agentId || !params.sessionKey) {
       // No agent ID or session key - can't inject context
@@ -255,12 +259,11 @@ export class ContinuityContextEngine {
         .slice(0, 5)
         .reverse();  // Show oldest first
       
-      console.log('[continuity] assemble: filtered', {
-        totalEntries: recentStore.entries.length,
-        relevantEntries: relevantEntries.length,
-        contextEntries: contextEntries.length,
-        agentId
-      });
+      try {
+        require('fs').appendFileSync('/tmp/continuity-assemble.log',
+          `${new Date().toISOString()} filtered: total=${recentStore.entries.length} relevant=${relevantEntries.length} context=${contextEntries.length}
+`);
+      } catch {}
       
       if (contextEntries.length === 0) {
         // No cross-channel context to inject

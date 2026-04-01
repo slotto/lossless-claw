@@ -202,7 +202,7 @@ export class ContinuityContextEngine {
     tokenBudget?: number;
   }): Promise<AssembleResult> {
     // Get agent ID from session or use configured agent
-    const agentId = this.params.agentId ?? resolveSessionAgentId(params.sessionKey);
+    const agentId = this.params.agentId;
     
     try {
       require('fs').appendFileSync('/tmp/continuity-assemble.log',

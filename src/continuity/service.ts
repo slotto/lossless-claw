@@ -644,7 +644,7 @@ export class ContinuityService {
     return { version: STORE_VERSION, records: [] };
   }
 
-  private async readRecentStore(agentId: string): Promise<ContinuityRecentStoreFile> {
+  async readRecentStore(agentId: string): Promise<ContinuityRecentStoreFile> {
     const file = await readJsonFile<{
       version?: number;
       entries?: unknown[];

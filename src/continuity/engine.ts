@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import type { PluginLogger } from "./sdk-compat.js";
 import type { ContinuityAgentMessage } from "./types.js";
 import type { ContinuityService } from "./service.js";
+import { resolveSessionAgentId } from "./session-key.js";
 
 type ContextEngineInfo = {
   id: string;
@@ -196,13 +197,87 @@ export class ContinuityContextEngine {
 
   async assemble(params: {
     sessionId: string;
+    sessionKey?: string;
     messages: ContinuityAgentMessage[];
     tokenBudget?: number;
   }): Promise<AssembleResult> {
-    return {
-      messages: params.messages,
-      estimatedTokens: 0,
-    };
+    // Get agent ID from session or use configured agent
+    const agentId = this.params.agentId ?? resolveSessionAgentId(params.sessionKey);
+    
+    if (!agentId || !params.sessionKey) {
+      // No agent ID or session key - can't inject context
+      return {
+        messages: params.messages,
+        estimatedTokens: 0,
+      };
+    }
+
+    try {
+      // Read recent.json for this agent
+      const recentStore = await this.params.service.readRecentStore(agentId);
+      
+      // Filter entries for cross-channel injection
+      const relevantEntries = recentStore.entries.filter(entry => {
+        // Skip entries from current session (already in messages)
+        if (entry.sessionKey === params.sessionKey) {
+          return false;
+        }
+        
+        // Only include if this agent was a participant
+        if (!entry.participants?.includes(agentId)) {
+          return false;
+        }
+        
+        // Only include recent entries (within TTL)
+        const config = this.params.service.currentPluginConfig();
+        const ttlMs = (config.recent.ttlHours ?? 48) * 60 * 60 * 1000;
+        const cutoff = Date.now() - ttlMs;
+        if (entry.createdAt < cutoff) {
+          return false;
+        }
+        
+        return true;
+      });
+      
+      // Take the 5 most recent cross-channel entries
+      const contextEntries = relevantEntries
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 5)
+        .reverse();  // Show oldest first
+      
+      if (contextEntries.length === 0) {
+        // No cross-channel context to inject
+        return {
+          messages: params.messages,
+          estimatedTokens: 0,
+        };
+      }
+      
+      // Convert entries to context messages
+      const contextMessages: ContinuityAgentMessage[] = contextEntries.map(entry => ({
+        role: entry.role,
+        content: `[Recent context from another channel]: ${entry.text}`,
+        timestamp: entry.createdAt,
+      }));
+      
+      // Inject context before current messages
+      return {
+        messages: [
+          ...contextMessages,
+          ...params.messages,
+        ],
+        estimatedTokens: contextMessages.reduce((sum, msg) => 
+          sum + (typeof msg.content === 'string' ? msg.content.length / 4 : 0), 0
+        ),
+      };
+    } catch (error) {
+      // If injection fails, fall back to original messages
+      console.error('[continuity] assemble failed:', error);
+      return {
+        messages: params.messages,
+        estimatedTokens: 0,
+      };
+    }
   }
 
   async afterTurn(params: {

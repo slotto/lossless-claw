@@ -74,8 +74,9 @@ export function resolveContinuityScope(params: {
 }): ResolvedContinuityScope {
   const agentId = normalizeAgentId(params.agentId);
   const parsed = parseContinuitySessionScope(params.sessionKey);
-  const normalizedSessionKey = parsed.normalizedKey;
-  if (parsed.chatType !== "direct" || !normalizedSessionKey) {
+  const normalizedSessionKey = parsed.normalizedSessionKey;
+  
+  if (!normalizedSessionKey) {
     return {
       scopeKind: "agent",
       scopeId: scopeIdForAgent(agentId),
@@ -83,6 +84,8 @@ export function resolveContinuityScope(params: {
     };
   }
 
+  // Check for explicit subject binding FIRST (before chatType check)
+  // This allows channels to be bound to subjects
   const rawKey = params.sessionKey!.trim().toLowerCase();
   const boundSubjectId = resolveBoundSubjectId({
     identity: params.identity,
@@ -95,6 +98,15 @@ export function resolveContinuityScope(params: {
       scopeKind: "subject",
       scopeId: scopeIdForSubject(boundSubjectId),
       subjectId: boundSubjectId,
+      normalizedSessionKey,
+    };
+  }
+
+  // Only reject non-direct channels if NO binding matched
+  if (parsed.chatType !== "direct") {
+    return {
+      scopeKind: "agent",
+      scopeId: scopeIdForAgent(agentId),
       normalizedSessionKey,
     };
   }

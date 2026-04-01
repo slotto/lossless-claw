@@ -202,7 +202,14 @@ export class ContinuityContextEngine {
     tokenBudget?: number;
   }): Promise<AssembleResult> {
     // Get agent ID from session or use configured agent
-    const agentId = this.params.agentId;
+    // Extract from sessionKey: "agent:main:slack:channel:..." -> "main"
+    let agentId = this.params.agentId;
+    if (!agentId && params.sessionKey) {
+      const parts = params.sessionKey.split(':');
+      if (parts.length >= 2 && parts[0] === 'agent') {
+        agentId = parts[1];
+      }
+    }
     
     try {
       require('fs').appendFileSync('/tmp/continuity-assemble.log',

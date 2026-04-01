@@ -74,7 +74,7 @@ export function resolveContinuityScope(params: {
 }): ResolvedContinuityScope {
   const agentId = normalizeAgentId(params.agentId);
   const parsed = parseContinuitySessionScope(params.sessionKey);
-  const normalizedSessionKey = parsed.normalizedKey;
+  const normalizedSessionKey = parsed.normalizedSessionKey;
   
   if (!normalizedSessionKey) {
     return {

@@ -414,9 +414,7 @@ function getLegacyScopeFallback(params: {
   sourceClass: ContinuitySourceClass;
   config: ResolvedContinuityConfig;
 }) {
-  // Allow all sources (cross-channel continuity enabled)
-  // Original: if (isDirectSourceClass(params.sourceClass) && params.config.identity.mode === "single_user")
-  if (true) {
+  if (isDirectSourceClass(params.sourceClass) && params.config.identity.mode === "single_user") {
     return {
       scopeKind: "subject" as const,
       scopeId: `subject:${params.config.identity.defaultDirectSubjectId}`,
@@ -694,7 +692,14 @@ export class ContinuityService {
     agentId: string,
     store: ContinuityRecentStoreFile,
   ): Promise<void> {
-    await writeJsonAtomic(this.resolveRecentStorePath(agentId), store, { trailingNewline: true });
+    const storePath = this.resolveRecentStorePath(agentId);
+    try {
+      const fs = require("fs");
+      fs.appendFileSync("/tmp/continuity-write-recent.log", 
+        new Date().toISOString() + " writeRecentStore: agentId=" + agentId + 
+        " path=" + storePath + " entries=" + store.entries.length + "\n");
+    } catch {}
+    await writeJsonAtomic(storePath, store, { trailingNewline: true });
   }
 
   private async materializeApproved(
@@ -768,9 +773,8 @@ export class ContinuityService {
   }): boolean {
     return (
       params.config.recent.enabled &&
-      // Allow all sources (cross-channel continuity)
-      // Original had: isDirectSourceClass(params.sourceClass) &&
-      (params.scope.scopeKind === "subject" || params.scope.scopeKind === "agent") &&
+      isDirectSourceClass(params.sourceClass) &&
+      params.scope.scopeKind === "subject" &&
       Boolean(params.scope.subjectId)
     );
   }
@@ -810,19 +814,8 @@ export class ContinuityService {
       let storeChanged = false;
       let recentChanged = false;
 
-      
-      // Debug: log shouldCaptureRecent result
-      const shouldCapture = this.shouldCaptureRecent({ config: pluginConfig, sourceClass, scope });
-      try {
-        require('fs').appendFileSync('/tmp/capture-debug.log',
-          `${new Date().toISOString()} shouldCapture=${shouldCapture} scope=${JSON.stringify(scope)} sourceClass=${sourceClass}\n`);
-      } catch {}
-      if (shouldCapture) {
+      if (this.shouldCaptureRecent({ config: pluginConfig, sourceClass, scope })) {
         for (const message of params.messages) {
-          try {
-            require('fs').appendFileSync('/tmp/capture-debug.log',
-              `${new Date().toISOString()} processing message role=${message.role} hasText=${!!message.content}\n`);
-          } catch {}
           if (message.role !== "user" && message.role !== "assistant") {
             continue;
           }
@@ -849,10 +842,6 @@ export class ContinuityService {
             createdAt,
           });
           recentChanged = true;
-          try {
-            require('fs').appendFileSync('/tmp/capture-debug.log',
-              `${new Date().toISOString()} WROTE entry to recentStore, total entries: ${recentStore.entries.length}\n`);
-          } catch {}
         }
         if (recentChanged) {
           recentStore.entries = trimRecentEntries(

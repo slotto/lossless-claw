@@ -216,17 +216,6 @@ export class ContinuityContextEngine {
     tokenBudget?: number;
     runtimeContext?: Record<string, unknown>;
   }): Promise<void> {
-    // Debug logging
-    // Debug logging with details
-    try {
-      const fs = require("fs");
-      const log = new Date().toISOString() + 
-        " afterTurn: isHeartbeat=" + params.isHeartbeat +
-        " sessionKey=" + (params.sessionKey ? params.sessionKey.substring(0, 30) : "MISSING") +
-        " messages=" + params.messages.length +
-        " prePrompt=" + params.prePromptMessageCount + "\n";
-      fs.appendFileSync("/tmp/continuity-afterturn.log", log);
-    } catch {}
     if (params.isHeartbeat) {
       return;
     }
@@ -247,7 +236,6 @@ export class ContinuityContextEngine {
 
     const runtimeAgentId = params.runtimeContext?.agentId as string | undefined;
 
-    try { require("fs").appendFileSync("/tmp/continuity-afterturn.log", new Date().toISOString() + " calling captureTurn with " + newMessages.length + " messages\n"); } catch {}
     await this.params.service.captureTurn({
       agentId: this.params.agentId ?? runtimeAgentId,
       sessionId: params.sessionId,

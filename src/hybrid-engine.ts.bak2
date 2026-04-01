@@ -88,12 +88,6 @@ export class HybridContextEngine implements ContextEngine {
   async ingestBatch(
     params: Parameters<ContextEngine["ingestBatch"]>[0],
   ): Promise<IngestBatchResult> {
-    // Debug logging
-    try {
-      require('fs').appendFileSync('/tmp/hybrid-ingestbatch.log', 
-        `${new Date().toISOString()} hybrid ingestBatch called - sessionId: ${params.sessionId}, messages: ${params.messages?.length || 0}\n`);
-    } catch {}
-
     // Only LCM has ingestBatch; continuity ingests one at a time
     const lcmResult = await (this.lcm.ingestBatch?.(params) ?? Promise.resolve({ ingestedCount: 0 }));
     
@@ -135,63 +129,9 @@ export class HybridContextEngine implements ContextEngine {
     };
   }
 
-  async beforeTurn(
-    params: Parameters<ContextEngine["beforeTurn"]>[0],
-  ): Promise<void> {
-    // Emergency compaction check: prevent crashes from bloated sessions
-    const fs = require('fs');
-    
-    try {
-      const stats = await fs.promises.stat(params.sessionFile);
-      const fileSizeBytes = stats.size;
-      
-      // Rough estimate: 1 byte ~= 0.25 tokens for JSON (conservative)
-      const estimatedTokens = Math.floor(fileSizeBytes * 0.25);
-      
-      // Emergency threshold: 150% of context budget
-      const emergencyThreshold = (params.tokenBudget || 200000) * 1.5;
-      
-      if (estimatedTokens > emergencyThreshold) {
-        // Log emergency compaction
-        try {
-          fs.appendFileSync('/tmp/emergency-compact.log',
-            `${new Date().toISOString()} EMERGENCY: session ${params.sessionId} has ${estimatedTokens} tokens (threshold: ${emergencyThreshold})\n`);
-        } catch {}
-        
-        // Trigger emergency compaction BEFORE loading into context
-        await this.compact({
-          sessionId: params.sessionId,
-          sessionKey: params.sessionKey,
-          sessionFile: params.sessionFile,
-          messages: params.messages,
-          contextTokens: params.tokenBudget || 200000,
-          model: params.model,
-        });
-        
-        // Log completion
-        try {
-          fs.appendFileSync('/tmp/emergency-compact.log',
-            `${new Date().toISOString()} EMERGENCY: compaction completed for ${params.sessionId}\n`);
-        } catch {}
-      }
-    } catch (err) {
-      // Non-fatal: log error but don't block the turn
-      try {
-        fs.appendFileSync('/tmp/emergency-compact.log',
-          `${new Date().toISOString()} ERROR: beforeTurn check failed: ${String(err)}\n`);
-      } catch {}
-    }
-  }
-
   async afterTurn(
     params: Parameters<ContextEngine["afterTurn"]>[0],
   ): Promise<void> {
-    // Debug logging
-    try {
-      require('fs').appendFileSync('/tmp/hybrid-afterturn.log', 
-        `${new Date().toISOString()} hybrid afterTurn called - sessionId: ${params.sessionId}, messages: ${params.messages?.length || 0}\n`);
-    } catch {}
-    
     // Call afterTurn on both engines in parallel
     await Promise.all([
       this.lcm.afterTurn?.(params),

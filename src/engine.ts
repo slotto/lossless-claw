@@ -2140,7 +2140,18 @@ export class LcmContextEngine implements ContextEngine {
       );
     }
 
-    const liveContextTokens = estimateSessionTokenCountForAfterTurn(params.messages);
+    // Prefer OpenClaw's currentTokenCount (includes full session context)
+    // Fall back to our own estimation if not provided
+    const providedTokenCount = typeof params.runtimeContext?.currentTokenCount === 'number'
+      ? params.runtimeContext.currentTokenCount
+      : undefined;
+    const liveContextTokens = providedTokenCount ?? estimateSessionTokenCountForAfterTurn(params.messages);
+    
+    if (providedTokenCount !== undefined) {
+      console.log(`[lcm] afterTurn: using runtime currentTokenCount=${providedTokenCount}`);
+    } else {
+      console.log(`[lcm] afterTurn: runtime currentTokenCount not provided, estimated=${liveContextTokens}`);
+    }
 
     try {
       const leafTrigger = await this.evaluateLeafTrigger(params.sessionId, params.sessionKey);

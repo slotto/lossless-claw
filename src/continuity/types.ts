@@ -239,6 +239,7 @@ export type ContinuityRecentEntry = {
   text: string;
   sessionKey: string;
   sessionId: string;
+  participants?: string[];  // NEW: agents who were in this conversation
   createdAt: number;
 };
 

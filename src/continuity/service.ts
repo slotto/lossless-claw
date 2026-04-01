@@ -206,6 +206,20 @@ function nextRecentTimestamp(entries: ContinuityRecentEntry[], now = Date.now())
   return now <= maxTimestamp ? maxTimestamp + 1 : now;
 }
 
+/**
+ * Extract list of agent participants from a session key.
+ * For DMs: returns single agent from key
+ * For channels: returns agent from key (TODO: query runtime for all agents)
+ */
+function extractParticipants(sessionKey: string): string[] {
+  const parts = sessionKey.split(':');
+  if (parts.length >= 2 && parts[0] === 'agent') {
+    return [parts[1]];  // Return the agent ID (e.g., "main", "nova")
+  }
+  return [];
+}
+
+
 function renderManagedSection(kind: ContinuityKind, records: ContinuityItem[]): string {
   const body =
     records.length === 0
@@ -846,6 +860,7 @@ export class ContinuityService {
             text,
             sessionKey: params.sessionKey!,
             sessionId: params.sessionId,
+            participants: extractParticipants(params.sessionKey!),
             createdAt,
           });
           recentChanged = true;

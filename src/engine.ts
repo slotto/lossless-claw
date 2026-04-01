@@ -2153,9 +2153,18 @@ export class LcmContextEngine implements ContextEngine {
       console.log(`[lcm] afterTurn: runtime currentTokenCount not provided, estimated=${liveContextTokens}`);
     }
 
+    // Manual threshold check using liveContextTokens (includes full session context)
+    const thresholdTokens = Math.floor(tokenBudget * (this.config.compactionThreshold ?? 0.75));
+    const shouldCompactByThreshold = liveContextTokens >= thresholdTokens;
+    
+    if (shouldCompactByThreshold) {
+      console.log(`[lcm] Proactive compaction triggered: ${liveContextTokens}/${tokenBudget} tokens (${Math.round(liveContextTokens/tokenBudget*100)}%) >= ${Math.round((this.config.compactionThreshold ?? 0.75)*100)}% threshold`);
+    }
+
     try {
       const leafTrigger = await this.evaluateLeafTrigger(params.sessionId, params.sessionKey);
-      if (leafTrigger.shouldCompact) {
+      // Trigger compaction if either threshold crossed OR evaluateLeafTrigger says so
+      if (shouldCompactByThreshold || leafTrigger.shouldCompact) {
         this.compactLeafAsync({
           sessionId: params.sessionId,
           sessionKey: params.sessionKey,

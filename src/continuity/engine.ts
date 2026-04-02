@@ -238,6 +238,11 @@ export class ContinuityContextEngine {
         
         // Only include if this agent was a participant
         if (!entry.participants?.includes(agentId)) {
+          try {
+            require('fs').appendFileSync('/tmp/continuity-assemble.log',
+              `${new Date().toISOString()} SKIP (no participant): entry.participants=${JSON.stringify(entry.participants)} agentId=${agentId}
+`);
+          } catch {}
           return false;
         }
         

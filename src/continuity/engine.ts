@@ -237,13 +237,16 @@ export class ContinuityContextEngine {
         }
         
         // Only include if this agent was a participant
-        if (!entry.participants?.includes(agentId)) {
-          try {
-            require('fs').appendFileSync('/tmp/continuity-assemble.log',
-              `${new Date().toISOString()} SKIP (no participant): entry.participants=${JSON.stringify(entry.participants)} agentId=${agentId}
+        // If participants is null/undefined (old entries), include if subjectId matches
+        if (entry.participants !== undefined && entry.participants !== null) {
+          if (!entry.participants.includes(agentId)) {
+            try {
+              require('fs').appendFileSync('/tmp/continuity-assemble.log',
+                `${new Date().toISOString()} SKIP (no participant): entry.participants=${JSON.stringify(entry.participants)} agentId=${agentId}
 `);
-          } catch {}
-          return false;
+            } catch {}
+            return false;
+          }
         }
         
         // Only include recent entries (within TTL)

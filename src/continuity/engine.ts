@@ -280,10 +280,12 @@ export class ContinuityContextEngine {
         };
       }
       
-      // Convert entries to context messages
+      // Convert entries to context messages.
+      // Content must be an array of content blocks (never a plain string) so that
+      // downstream providers can call Array methods like flatMap() on it safely.
       const contextMessages: ContinuityAgentMessage[] = contextEntries.map(entry => ({
         role: entry.role,
-        content: `[Recent context from another channel]: ${entry.text}`,
+        content: [{ type: "text", text: `[Recent context from another channel]: ${entry.text}` }] as unknown as ContinuityAgentMessage["content"],
         timestamp: entry.createdAt,
       }));
       
@@ -293,9 +295,12 @@ export class ContinuityContextEngine {
           ...contextMessages,
           ...params.messages,
         ],
-        estimatedTokens: contextMessages.reduce((sum, msg) => 
-          sum + (typeof msg.content === 'string' ? msg.content.length / 4 : 0), 0
-        ),
+        estimatedTokens: contextMessages.reduce((sum, msg) => {
+          const c = msg.content;
+          if (typeof c === 'string') return sum + c.length / 4;
+          if (Array.isArray(c)) return sum + c.reduce((s: number, b: { text?: string }) => s + (b.text?.length ?? 0) / 4, 0);
+          return sum;
+        }, 0),
       };
     } catch (error) {
       // If injection fails, fall back to original messages

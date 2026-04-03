@@ -54,7 +54,7 @@ const RECENT_STORE_VERSION = 1 as const;
 const MANAGED_BEGIN = "<!-- OPENCLAW_CONTINUITY:BEGIN -->";
 const MANAGED_END = "<!-- OPENCLAW_CONTINUITY:END -->";
 const CONTEXT_CHAR_BUDGET = 1400;
-const RECENT_ENTRY_CHAR_LIMIT = 320;
+const RECENT_ENTRY_CHAR_LIMIT = 2400;
 
 function normalizeText(value: string): string {
   return value.trim().replace(/\s+/g, " ");

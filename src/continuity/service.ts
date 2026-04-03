@@ -444,14 +444,37 @@ function getLegacyScopeFallback(params: {
   };
 }
 
+/**
+ * Strip OpenClaw system wrappers from user messages.
+ * Extracts just the actual user message from patterns like:
+ * "System: [timestamp] Slack message in #channel from User: actual message ..."
+ */
+function stripOpenClawSystemWrapper(text: string): string {
+  // Match: "System: [timestamp] <platform> message in <channel> from <user>: <actual message>"
+  // Common patterns:
+  // - "System: [2026-04-03 13:59:18 GMT+2] Slack message in #atlas-owner from Julian: huhu ..."
+  // - "System: [timestamp] Slack message in <#C0APFPZMK53> from Julian: huhu ..."
+  const systemMatch = text.match(/^System:\s*\[.*?\]\s+\w+\s+message\s+in\s+[^:]+\s+from\s+[^:]+:\s*(.+?)(?:\s+Conversation\s+info|$)/s);
+  if (systemMatch && systemMatch[1]) {
+    return systemMatch[1].trim();
+  }
+  
+  // If no wrapper detected, return as-is
+  return text;
+}
+
 function normalizeRecentMessageText(
   message: ContinuityAgentMessage & { role: "user" | "assistant" },
 ): string | undefined {
   const text = extractTextFromChatContent(message.content ?? "", {
-    sanitizeText: (value) =>
-      message.role === "assistant"
-        ? stripAssistantInternalScaffolding(value)
-        : value.replace(/<[^>]+>/g, " "),
+    sanitizeText: (value) => {
+      // First strip OpenClaw system wrappers for user messages
+      const unwrapped = message.role === "user" ? stripOpenClawSystemWrapper(value) : value;
+      // Then apply role-specific sanitization
+      return message.role === "assistant"
+        ? stripAssistantInternalScaffolding(unwrapped)
+        : unwrapped.replace(/<[^>]+>/g, " ");
+    },
   });
   if (typeof text !== "string") {
     return undefined;
@@ -464,6 +487,7 @@ function normalizeRecentMessageText(
     ? `${normalized.slice(0, RECENT_ENTRY_CHAR_LIMIT - 3)}...`
     : normalized;
 }
+
 
 function trimRecentEntries(
   entries: ContinuityRecentEntry[],

@@ -54,7 +54,7 @@ const RECENT_STORE_VERSION = 1 as const;
 const MANAGED_BEGIN = "<!-- OPENCLAW_CONTINUITY:BEGIN -->";
 const MANAGED_END = "<!-- OPENCLAW_CONTINUITY:END -->";
 const CONTEXT_CHAR_BUDGET = 1400;
-const RECENT_ENTRY_CHAR_LIMIT = 2400;
+// No character limit on recent entries
 
 function normalizeText(value: string): string {
   return value.trim().replace(/\s+/g, " ");
@@ -483,9 +483,7 @@ function normalizeRecentMessageText(
   if (isPromptInjectionShaped(normalized)) {
     return undefined;
   }
-  return normalized.length > RECENT_ENTRY_CHAR_LIMIT
-    ? `${normalized.slice(0, RECENT_ENTRY_CHAR_LIMIT - 3)}...`
-    : normalized;
+  return normalized;
 }
 
 

@@ -76,68 +76,12 @@ export function resolveContinuityScope(params: {
   const parsed = parseContinuitySessionScope(params.sessionKey);
   const normalizedSessionKey = parsed.normalizedKey;
   
-  if (!normalizedSessionKey) {
-    return {
-      scopeKind: "agent",
-      scopeId: scopeIdForAgent(agentId),
-      normalizedSessionKey,
-    };
-  }
-
-  // Check for explicit subject binding FIRST (before chatType check)
-  // This allows channels to be bound to subjects
-  const rawKey = params.sessionKey!.trim().toLowerCase();
-  const boundSubjectId = resolveBoundSubjectId({
-    identity: params.identity,
-    rawKey,
-    normalizedKey: normalizedSessionKey,
-    channel: parsed.channel,
-  });
-  if (boundSubjectId) {
-    return {
-      scopeKind: "subject",
-      scopeId: scopeIdForSubject(boundSubjectId),
-      subjectId: boundSubjectId,
-      normalizedSessionKey,
-    };
-  }
-
-  // Only reject non-direct channels if NO binding matched
-  if (parsed.chatType !== "direct") {
-    return {
-      scopeKind: "agent",
-      scopeId: scopeIdForAgent(agentId),
-      normalizedSessionKey,
-    };
-  }
-
-  switch (params.identity.mode) {
-    case "single_user":
-      return {
-        scopeKind: "subject",
-        scopeId: scopeIdForSubject(params.identity.defaultDirectSubjectId),
-        subjectId: params.identity.defaultDirectSubjectId,
-        normalizedSessionKey,
-      };
-    case "hybrid":
-      return {
-        scopeKind: "subject",
-        scopeId: scopeIdForSubject(params.identity.defaultDirectSubjectId),
-        subjectId: params.identity.defaultDirectSubjectId,
-        normalizedSessionKey,
-      };
-    case "explicit":
-      return {
-        scopeKind: "session",
-        scopeId: scopeIdForSession(normalizedSessionKey),
-        normalizedSessionKey,
-      };
-    case "off":
-    default:
-      return {
-        scopeKind: "agent",
-        scopeId: scopeIdForAgent(agentId),
-        normalizedSessionKey,
-      };
-  }
+  // Default to agent scope for all sessions
+  // Continuity now works based on participants (which agents were in the channel)
+  // rather than subjectId (which human was involved)
+  return {
+    scopeKind: "agent",
+    scopeId: scopeIdForAgent(agentId),
+    normalizedSessionKey,
+  };
 }

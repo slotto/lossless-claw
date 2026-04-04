@@ -208,13 +208,22 @@ function nextRecentTimestamp(entries: ContinuityRecentEntry[], now = Date.now())
 
 /**
  * Extract list of agent participants from a session key.
- * For DMs: returns single agent from key
- * For channels: returns agent from key (TODO: query runtime for all agents)
+ * If providedParticipants is given (from OpenClaw afterTurn), use that.
+ * Otherwise fallback to extracting agent from session key.
  */
-function extractParticipants(sessionKey: string): string[] {
+function extractParticipants(
+  sessionKey: string,
+  providedParticipants?: string[]
+): string[] {
+  // If OpenClaw provided participants, use them
+  if (providedParticipants && providedParticipants.length > 0) {
+    return providedParticipants;
+  }
+  
+  // Fallback: extract agent from session key
   const parts = sessionKey.split(':');
   if (parts.length >= 2 && parts[0] === 'agent') {
-    return [parts[1]];  // Return the agent ID (e.g., "main", "nova")
+    return [parts[1]];
   }
   return [];
 }
@@ -882,7 +891,7 @@ export class ContinuityService {
             text,
             sessionKey: params.sessionKey!,
             sessionId: params.sessionId,
-            participants: extractParticipants(params.sessionKey!),
+            participants: extractParticipants(params.sessionKey!, params.participants),
             createdAt,
           });
           recentChanged = true;

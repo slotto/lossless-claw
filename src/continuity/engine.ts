@@ -362,6 +362,7 @@ export class ContinuityContextEngine {
       sessionId: params.sessionId,
       sessionKey,
       messages: newMessages,
+      participants: params.participants,
     });
   }
 

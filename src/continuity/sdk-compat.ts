@@ -105,6 +105,7 @@ export interface CompactResult {
 export interface AfterTurnParams {
   sessionKey: string;
   attemptId?: string;
+  participants?: string[];  // All agents + humans in this channel
 }
 
 export interface BeforeSubagentSpawnParams {

@@ -222,6 +222,7 @@ export type ContinuityCaptureInput = {
   sessionKey?: string;
   sessionId: string;
   messages: ContinuityAgentMessage[];
+  participants?: string[];
 };
 
 export type ContinuityExtractionMatch = {

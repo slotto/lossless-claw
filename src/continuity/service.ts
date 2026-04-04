@@ -873,7 +873,7 @@ export class ContinuityService {
           const text = normalizeRecentMessageText(
             message as ContinuityAgentMessage & { role: "user" | "assistant" },
           );
-          if (!text || !scope.subjectId) {
+          if (!text) {
             continue;
           }
           const createdAt = nextRecentTimestamp(
@@ -885,7 +885,7 @@ export class ContinuityService {
           recentStore.entries.push({
             id: `recent_${randomUUID().replace(/-/g, "").slice(0, 12)}`,
             scopeId: scope.scopeId,
-            subjectId: scope.subjectId,
+            subjectId: scope.subjectId || "",
             role: message.role,
             text,
             sessionKey: params.sessionKey!,

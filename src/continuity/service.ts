@@ -815,8 +815,7 @@ export class ContinuityService {
       params.config.recent.enabled &&
       // Allow all sources (cross-channel continuity)
       // Original had: isDirectSourceClass(params.sourceClass) &&
-      (params.scope.scopeKind === "subject" || params.scope.scopeKind === "agent") &&
-      Boolean(params.scope.subjectId)
+      params.scope.scopeKind === "agent"
     );
   }
 
